@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+build
+.dockerignore
+Dockerfile
+Dockerfile.dev
+.git
+.gitignore
+README.md

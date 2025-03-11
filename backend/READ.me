@@ -1,0 +1,145 @@
+# IPL Analytics 2.0 - Backend API
+
+This repository contains the FastAPI backend for the IPL Analytics 2.0 platform, providing comprehensive cricket data analysis for Indian Premier League (IPL) matches from 2008 to 2024.
+
+## Features
+
+- Comprehensive match statistics analysis
+- Team performance metrics
+- Venue analysis
+- Head-to-head analysis
+- Toss statistics
+- Player performance statistics
+- RESTful API with automatic documentation
+- Production-ready code with Docker support
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9+
+- PostgreSQL 12+
+- Docker (optional)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/Skye_analytics_2.0-platform.git
+   cd Skye_analytics_2.0-platform/backend
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Create a `.env` file in the backend directory:
+   ```
+   DB_NAME=ipl_2008_2024
+   DB_USER=skye
+   DB_PASSWORD=skye
+   DB_HOST=localhost
+   ```
+
+### Database Setup
+
+1. Create PostgreSQL database:
+   ```sql
+   CREATE DATABASE ipl_2008_2024;
+   ```
+
+2. Run database schema creation script:
+   ```bash
+   psql -U skye -d ipl_2008_2024 -f app/schemas/ipl_database_schema.sql
+   ```
+
+3. Import data using the provided script:
+   ```bash
+   python scripts/ipl_import_data.py
+   ```
+
+### Running the Application
+
+1. Start the FastAPI server:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+2. Access the API documentation:
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
+
+### Docker Deployment
+
+1. Build the Docker image:
+   ```bash
+   docker build -t ipl-analytics-backend .
+   ```
+
+2. Run the Docker container:
+   ```bash
+   docker run -p 8000:8000 --env-file .env ipl-analytics-backend
+   ```
+
+## API Endpoints
+
+### Cricket Statistics
+
+- `GET /api/cricket/match-statistics` - Get overall match statistics
+- `GET /api/cricket/toss-analysis` - Get toss analysis statistics
+- `GET /api/cricket/team-stats` - Get team statistics
+- `GET /api/cricket/venue-stats` - Get venue statistics
+- `GET /api/cricket/head-to-head` - Get head-to-head statistics between teams
+- `GET /api/cricket/player-stats` - Get player statistics
+
+### Reference Data
+
+- `GET /api/cricket/teams` - Get list of all teams
+- `GET /api/cricket/seasons` - Get list of all seasons
+- `GET /api/cricket/venues` - Get list of all venues
+- `GET /api/cricket/players/search` - Search for players by name
+
+## Project Structure
+
+```
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   └── cricket.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── cricket.py
+│   └── schemas/
+│       └── ipl_database_schema.sql
+├── data/
+│   ├── matches.csv
+│   └── deliveries.csv
+├── scripts/
+│   ├── ipl_import_data.py
+│   └── repair_ipl_database.py
+├── requirements.txt
+├── Dockerfile
+└── docker-compose.yml
+```
+
+## Testing
+
+Run tests using pytest:
+
+```bash
+pytest
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    container_name: ipl-analytics-backend
+    ports:
+      - "8000:8000"
+    networks:
+      - ipl-network
+
+  frontend:
+    build: ./frontend
+    container_name: ipl-analytics-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000/api
+    networks:
+      - ipl-network
+
+networks:
+  ipl-network:
+    driver: bridge

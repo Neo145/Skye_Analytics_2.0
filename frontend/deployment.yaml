@@ -1,0 +1,4 @@
+spec:
+  containers:
+  - name: frontend
+    image: skyeneo/ipl-analytics-frontend:v1

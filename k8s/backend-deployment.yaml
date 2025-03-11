@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipl-analytics-backend
+  labels:
+    app: ipl-analytics
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ipl-analytics
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: ipl-analytics
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: skyeneo/ipl-analytics-backend:v1
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipl-analytics-backend
+  labels:
+    app: ipl-analytics
+    tier: backend
+spec:
+  selector:
+    app: ipl-analytics
+    tier: backend
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: ClusterIP
