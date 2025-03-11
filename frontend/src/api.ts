@@ -1,10 +1,9 @@
 import axios from 'axios';
 
 // Base URL for the API
-// Kubernetes service name configuration - this will work in the Kubernetes environment
-const BASE_URL = 'http://ipl-analytics-backend/api';
+const BASE_URL = 'https://skye-analytics-2-0.onrender.com/api';
 
-// Interfaces for different data types remain the same
+// Interfaces for different data types
 export interface Team {
   team_name: string;
   seasons_played: number;
@@ -70,18 +69,37 @@ export interface HeadToHeadRecord {
   team_b_win_percentage: number;
 }
 
-// For Vite-based React applications, use import.meta.env instead of process.env
-// If you're in a production build within Kubernetes, use the service name
-// Otherwise use localhost for development
+// Determine API Base URL
 const isLocalDevelopment = window.location.hostname === 'localhost';
-const API_BASE = isLocalDevelopment ? 'http://localhost:8000/api' : BASE_URL;
+const API_BASE = isLocalDevelopment 
+  ? 'http://localhost:8000/api' 
+  : BASE_URL;
+
+// Create an axios instance with default configurations
+const axiosInstance = axios.create({
+  baseURL: API_BASE,
+  timeout: 10000, // 10 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Error handling interceptor
+axiosInstance.interceptors.response.use(
+  response => response,
+  error => {
+    const errorMessage = error.response?.data?.detail || error.message;
+    console.error('API Error:', errorMessage);
+    return Promise.reject(errorMessage);
+  }
+);
 
 // API Service Class
 export class SkyeAnalyticsApi {
   // Teams Endpoints
   static async getAllTeams(): Promise<Team[]> {
     try {
-      const response = await axios.get(`${API_BASE}/teams/`);
+      const response = await axiosInstance.get('/teams/');
       return response.data.teams;
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -91,7 +109,7 @@ export class SkyeAnalyticsApi {
 
   static async getTeamDetails(teamName: string): Promise<any> {
     try {
-      const response = await axios.get(`${API_BASE}/teams/${encodeURIComponent(teamName)}`);
+      const response = await axiosInstance.get(`/teams/${encodeURIComponent(teamName)}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching details for team ${teamName}:`, error);
@@ -102,7 +120,7 @@ export class SkyeAnalyticsApi {
   // Venues Endpoints
   static async getAllVenues(): Promise<Venue[]> {
     try {
-      const response = await axios.get(`${API_BASE}/venues/`);
+      const response = await axiosInstance.get('/venues/');
       return response.data.venues;
     } catch (error) {
       console.error('Error fetching venues:', error);
@@ -113,7 +131,7 @@ export class SkyeAnalyticsApi {
   // Matches Endpoints
   static async getAllMatches(): Promise<Match[]> {
     try {
-      const response = await axios.get(`${API_BASE}/matches/`);
+      const response = await axiosInstance.get('/matches/');
       return response.data.matches;
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -123,7 +141,7 @@ export class SkyeAnalyticsApi {
 
   static async getMatchesBySeason(season: number): Promise<any> {
     try {
-      const response = await axios.get(`${API_BASE}/matches/seasons/${season}`);
+      const response = await axiosInstance.get(`/matches/seasons/${season}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching matches for season ${season}:`, error);
@@ -143,7 +161,7 @@ export class SkyeAnalyticsApi {
       if (params?.team) queryParams.append('team', params.team);
       if (params?.venue) queryParams.append('venue', params.venue);
 
-      const response = await axios.get(`${API_BASE}/toss/analysis?${queryParams}`);
+      const response = await axiosInstance.get(`/toss/analysis?${queryParams}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching toss analysis:', error);
@@ -153,7 +171,7 @@ export class SkyeAnalyticsApi {
 
   static async getTossTrends(): Promise<any[]> {
     try {
-      const response = await axios.get(`${API_BASE}/toss/trends`);
+      const response = await axiosInstance.get('/toss/trends');
       return response.data.decision_trends;
     } catch (error) {
       console.error('Error fetching toss trends:', error);
@@ -164,7 +182,7 @@ export class SkyeAnalyticsApi {
   // Head-to-Head Endpoints
   static async getAllHeadToHeadRecords(): Promise<HeadToHeadRecord[]> {
     try {
-      const response = await axios.get(`${API_BASE}/head-to-head/`);
+      const response = await axiosInstance.get('/head-to-head/');
       return response.data.head_to_head_records;
     } catch (error) {
       console.error('Error fetching head-to-head records:', error);
@@ -175,10 +193,10 @@ export class SkyeAnalyticsApi {
   static async getHeadToHeadBetweenTeams(team1: string, team2: string, season?: number): Promise<any> {
     try {
       const url = season 
-        ? `${API_BASE}/head-to-head/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}?season=${season}`
-        : `${API_BASE}/head-to-head/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}`;
+        ? `/head-to-head/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}?season=${season}`
+        : `/head-to-head/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}`;
       
-      const response = await axios.get(url);
+      const response = await axiosInstance.get(url);
       return response.data;
     } catch (error) {
       console.error(`Error fetching head-to-head for ${team1} vs ${team2}:`, error);
@@ -188,7 +206,7 @@ export class SkyeAnalyticsApi {
 
   static async getStrongestRivalries(minMatches: number = 5): Promise<any[]> {
     try {
-      const response = await axios.get(`${API_BASE}/head-to-head/strongest-rivalries?min_matches=${minMatches}`);
+      const response = await axiosInstance.get(`/head-to-head/strongest-rivalries?min_matches=${minMatches}`);
       return response.data.rivalries;
     } catch (error) {
       console.error('Error fetching strongest rivalries:', error);
@@ -196,10 +214,10 @@ export class SkyeAnalyticsApi {
     }
   }
   
-  // Prediction Endpoints for the new ML features
+  // Prediction Endpoints
   static async predictMatch(team1Id: number, team2Id: number, venueId: number, seasonYear: number = 2024): Promise<any> {
     try {
-      const response = await axios.get(`${API_BASE}/predictions/match/${team1Id}/${team2Id}/${venueId}?season_year=${seasonYear}`);
+      const response = await axiosInstance.get(`/predictions/match/${team1Id}/${team2Id}/${venueId}?season_year=${seasonYear}`);
       return response.data;
     } catch (error) {
       console.error('Error predicting match outcome:', error);
@@ -209,7 +227,7 @@ export class SkyeAnalyticsApi {
   
   static async getFantasyTeam(team1Id: number, team2Id: number, venueId: number, budget: number = 100): Promise<any> {
     try {
-      const response = await axios.post(`${API_BASE}/predictions/fantasy-team`, {
+      const response = await axiosInstance.post('/predictions/fantasy-team', {
         team1_id: team1Id,
         team2_id: team2Id,
         venue_id: venueId,
@@ -225,8 +243,8 @@ export class SkyeAnalyticsApi {
   static async getPlayerPrediction(playerId: number, team1Id: number, team2Id: number, 
                                   venueId: number, playerTeamId: number): Promise<any> {
     try {
-      const response = await axios.get(
-        `${API_BASE}/predictions/player/${playerId}?team1_id=${team1Id}&team2_id=${team2Id}&venue_id=${venueId}&player_team_id=${playerTeamId}`
+      const response = await axiosInstance.get(
+        `/predictions/player/${playerId}?team1_id=${team1Id}&team2_id=${team2Id}&venue_id=${venueId}&player_team_id=${playerTeamId}`
       );
       return response.data;
     } catch (error) {
