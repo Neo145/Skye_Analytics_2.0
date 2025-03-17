@@ -17,6 +17,7 @@ from app.utils.db_utils import (
 
 # Import routers
 from app.routers import teams, players, matches, venues, toss, head_to_head
+from app.routers import prediction_endpoint
 
 # Create FastAPI instance
 app = FastAPI(
@@ -30,6 +31,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://skyeanalytics.in",  # Production frontend domain
+         "http://localhost:3000",  
         "http://localhost:5173",     # Local development
         "https://www.skyeanalytics.in"  # Optional: include www subdomain
     ],
@@ -39,6 +41,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(prediction_endpoint.router)
 app.include_router(teams.router)
 app.include_router(players.router)
 app.include_router(matches.router)

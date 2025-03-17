@@ -1,0 +1,312 @@
+/* PlayerVisualizations.css */
+
+/* Performance insights section */
+.insights-container {
+    background-color: #eff6ff;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .insights-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 1.25rem;
+    position: relative;
+    padding-left: 1.5rem;
+  }
+  
+  .insights-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.75rem;
+    height: 0.75rem;
+    background-color: #3b82f6;
+    border-radius: 50%;
+  }
+  
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  /* Batting metrics */
+  .batting-metrics {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  
+  .metric-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #4b5563;
+    margin-bottom: 0.75rem;
+  }
+  
+  .metric-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1e40af;
+    background-color: #dbeafe;
+    margin-bottom: 0.75rem;
+  }
+  
+  .metric-value {
+    display: flex;
+    justify-content: flex-end;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 0.25rem;
+  }
+  
+  /* Bowling metrics */
+  .bowling-metrics {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  
+  .economy-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #065f46;
+    background-color: #d1fae5;
+    margin-bottom: 0.75rem;
+  }
+  
+  /* Progress bars */
+  .progress-track {
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  
+  .progress-fill-sr {
+    height: 100%;
+    background: linear-gradient(to right, #3b82f6, #2563eb);
+    border-radius: 9999px;
+    transition: width 0.5s ease-out;
+  }
+  
+  .progress-fill-economy {
+    height: 100%;
+    background: linear-gradient(to right, #10b981, #059669);
+    border-radius: 9999px;
+    transition: width 0.5s ease-out;
+  }
+  
+  /* Player insights text */
+  .player-insights {
+    grid-column: span 2;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #4b5563;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 1rem;
+    border-radius: 0.5rem;
+  }
+  
+  .player-insights strong {
+    color: #1e40af;
+    font-weight: 600;
+  }
+  
+  /* Performance highlights */
+  .performance-highlight {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+    margin-right: 0.5rem;
+  }
+  
+  .highlight-good {
+    background-color: #dcfce7;
+    color: #166534;
+  }
+  
+  .highlight-average {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+  
+  .highlight-poor {
+    background-color: #fee2e2;
+    color: #b91c1c;
+  }
+  
+  /* Radar charts (placeholder for visualization) */
+  .radar-chart {
+    height: 200px;
+    margin-top: 1.5rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .radar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  
+  .radar-circle {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px dashed #d1d5db;
+  }
+  
+  .radar-circle-1 {
+    width: 40%;
+    height: 40%;
+  }
+  
+  .radar-circle-2 {
+    width: 60%;
+    height: 60%;
+  }
+  
+  .radar-circle-3 {
+    width: 80%;
+    height: 80%;
+  }
+  
+  .radar-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: #3b82f6;
+    border-radius: 50%;
+  }
+  
+  .radar-line {
+    position: absolute;
+    height: 1px;
+    background-color: #e5e7eb;
+    transform-origin: center center;
+    top: 50%;
+  }
+  
+  .radar-line-1 {
+    width: 100%;
+    transform: rotate(0deg);
+  }
+  
+  .radar-line-2 {
+    width: 100%;
+    transform: rotate(60deg);
+  }
+  
+  .radar-line-3 {
+    width: 100%;
+    transform: rotate(120deg);
+  }
+  
+  .radar-shape {
+    position: absolute;
+    width: 70%;
+    height: 70%;
+    clip-path: polygon(50% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    background-color: rgba(59, 130, 246, 0.2);
+    border: 2px solid rgba(59, 130, 246, 0.7);
+  }
+  
+  /* Career progression chart (placeholder) */
+  .career-chart {
+    height: 150px;
+    margin-top: 1.5rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    position: relative;
+  }
+  
+  .chart-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+  }
+  
+  .chart-line {
+    height: 80px;
+    position: relative;
+    padding-top: 10px;
+  }
+  
+  .chart-axis {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 1px;
+    background-color: #e5e7eb;
+  }
+  
+  .chart-point {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: #3b82f6;
+    border-radius: 50%;
+    transform: translate(-50%, 50%);
+  }
+  
+  .chart-bar {
+    position: absolute;
+    width: 12px;
+    background-color: #93c5fd;
+    border-radius: 1px;
+    bottom: 0;
+    transform: translateX(-50%);
+  }
+  
+  .chart-seasons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+  }
+  
+  .chart-season {
+    font-size: 0.7rem;
+    color: #6b7280;
+  }
+  
+  /* Media queries for responsive design */
+  @media (max-width: 768px) {
+    .insights-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .player-insights {
+      grid-column: span 1;
+    }
+  }

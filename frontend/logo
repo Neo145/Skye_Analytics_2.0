@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 85">
+  <!-- Definitions for gradients and effects -->
+  <defs>
+    <!-- Text gradient for SKYE -->
+    <linearGradient id="skyeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+    
+    <!-- Chart line gradient -->
+    <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF6B35"/>
+      <stop offset="100%" stop-color="#F7A278"/>
+    </linearGradient>
+    
+    <!-- Area under chart gradient -->
+    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff7b54" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ff7b54" stop-opacity="0.01"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- SKYE text - optimized font and size -->
+  <text x="40" y="55" font-family="Segoe UI, Tahoma, sans-serif" font-weight="600" font-size="25" letter-spacing="0.5" fill="url(#skyeGradient)">SKYE</text>
+  
+  <!-- Very minimal gap -->
+  
+  <!-- ANALYTICS with varying heights -->
+  <!-- A - height 7 -->
+  <text x="112" y="50" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="18" fill="#1a4c96">A</text>
+  
+  <!-- N - height 5 -->
+  <text x="127" y="54" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="14" fill="#1a4c96">N</text>
+  
+  <!-- A - height 6 -->
+  <text x="140" y="52" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="16" fill="#1a4c96">A</text>
+  
+  <!-- L - height 7 -->
+  <text x="152" y="50" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="18" fill="#1a4c96">L</text>
+  
+  <!-- Y - height 5 -->
+  <text x="162" y="54" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="14" fill="#1a4c96">Y</text>
+  
+  <!-- T - height 6 -->
+  <text x="174" y="52" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="16" fill="#1a4c96">T</text>
+  
+  <!-- I - height 5 -->
+  <text x="185" y="54" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="14" fill="#1a4c96">I</text>
+  
+  <!-- C - height 6 -->
+  <text x="192" y="52" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="16" fill="#1a4c96">C</text>
+  
+  <!-- S - height 7 -->
+  <text x="205" y="50" font-family="Segoe UI, Tahoma, sans-serif" font-weight="normal" font-size="18" fill="#1a4c96">S</text>
+  
+  <!-- Area under the chart line (very subtle) -->
+  <path d="M 117 40 
+           L 130 47 
+           L 143 43 
+           L 154 40 
+           L 167 47 
+           L 177 43 
+           L 187 47 
+           L 197 43 
+           L 210 40
+           L 210 57
+           L 117 57 Z" 
+        fill="url(#areaGradient)"/>
+  
+  <!-- Main chart line (smoother) -->
+  <path d="M 117 40 
+           L 130 47 
+           L 143 43 
+           L 154 40 
+           L 167 47 
+           L 177 43 
+           L 187 47 
+           L 197 43 
+           L 210 40" 
+        stroke="url(#chartGradient)" 
+        stroke-width="1.5" 
+        fill="none" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <!-- Data points (smaller) -->
+  <circle cx="117" cy="40" r="2" fill="#ff7b54"/> <!-- Above A -->
+  <circle cx="130" cy="47" r="2" fill="#ff7b54"/> <!-- Above N -->
+  <circle cx="143" cy="43" r="2" fill="#ff7b54"/> <!-- Above A -->
+  <circle cx="154" cy="40" r="2" fill="#ff7b54"/> <!-- Above L -->
+  <circle cx="167" cy="47" r="2" fill="#ff7b54"/> <!-- Above Y -->
+  <circle cx="177" cy="43" r="2" fill="#ff7b54"/> <!-- Above T -->
+  <circle cx="187" cy="47" r="2" fill="#ff7b54"/> <!-- Above I -->
+  <circle cx="197" cy="43" r="2" fill="#ff7b54"/> <!-- Above C -->
+  <circle cx="210" cy="40" r="2" fill="#ff7b54"/> <!-- Above S -->
+  
+  <!-- X-axis line (very subtle) -->
+  <line x1="112" y1="57" x2="215" y2="57" stroke="#1a4c96" stroke-width="0.5" opacity="0.2"/>
+  
+  <!-- Minimalist symbols - much smaller -->
+  <g transform="translate(80, 70) scale(0.25)">
+    <!-- Neural network symbol (AI) - very small -->
+    <g transform="translate(0, 0)">
+      <circle cx="0" cy="0" r="2" fill="#2563EB" opacity="0.6"/>
+      <circle cx="10" cy="-5" r="2" fill="#2563EB" opacity="0.6"/>
+      <circle cx="10" cy="5" r="2" fill="#2563EB" opacity="0.6"/>
+      <circle cx="20" cy="0" r="2" fill="#2563EB" opacity="0.6"/>
+      
+      <line x1="0" y1="0" x2="10" y2="-5" stroke="#FF6B35" stroke-width="0.6" opacity="0.5"/>
+      <line x1="0" y1="0" x2="10" y2="5" stroke="#FF6B35" stroke-width="0.6" opacity="0.5"/>
+      <line x1="10" y1="-5" x2="20" y2="0" stroke="#FF6B35" stroke-width="0.6" opacity="0.5"/>
+      <line x1="10" y1="5" x2="20" y2="0" stroke="#FF6B35" stroke-width="0.6" opacity="0.5"/>
+    </g>
+    
+    <!-- Cricket symbol - very small -->
+    <g transform="translate(150, 0)">
+      <circle cx="10" cy="0" r="6" fill="none" stroke="#2563EB" stroke-width="0.8" opacity="0.6"/>
+      <line x1="5" y1="-4" x2="15" y2="4" stroke="#2563EB" stroke-width="0.8" opacity="0.6"/>
+      <line x1="5" y1="4" x2="15" y2="-4" stroke="#2563EB" stroke-width="0.8" opacity="0.6"/>
+    </g>
+    
+    <!-- Stocks symbol - very small -->
+    <g transform="translate(270, 0)">
+      <polyline points="0,6 5,3 10,4 15,1 20,0" fill="none" stroke="#2563EB" stroke-width="0.8" opacity="0.6"/>
+      <line x1="0" y1="6" x2="0" y2="0" stroke="#2563EB" stroke-width="0.5" opacity="0.6"/>
+      <line x1="0" y1="6" x2="20" y2="6" stroke="#2563EB" stroke-width="0.5" opacity="0.6"/>
+    </g>
+  </g>
+  
+  <!-- Tagline - much smaller and lighter -->
+  <text x="130" y="78" font-family="Segoe UI, Tahoma, sans-serif" font-style="italic" font-size="6" fill="#6B7280" text-anchor="middle">Data-Driven Insights &amp; AI Models for Cricket &amp; Stocks</text>
+</svg>

@@ -64,7 +64,7 @@ def get_venue_stats(
             raise HTTPException(status_code=404, detail=f"Venue not found: {venue_name}")
             
         # Basic venue stats
-        basic_stats_query = """
+        basic_stats_query = f"""
         SELECT 
             venue,
             city,
@@ -75,12 +75,14 @@ def get_venue_stats(
             COUNT(DISTINCT team1) + COUNT(DISTINCT team2) as teams_played
         FROM match_info m
         WHERE venue = :venue_name
-        """ + (season_filter if season else "")
+        {season_filter}
+        GROUP BY venue, city
+        """
         
         basic_stats = execute_raw_sql(db, basic_stats_query, params)
         
         # Match outcomes
-        outcomes_query = """
+        outcomes_query = f"""
         SELECT 
             COUNT(*) as total_matches,
             SUM(CASE WHEN toss_decision = 'bat' THEN 1 ELSE 0 END) as bat_first_count,
@@ -119,12 +121,13 @@ def get_venue_stats(
             ROUND(SUM(CASE WHEN winner = toss_winner THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as toss_winner_win_percentage
         FROM match_info m
         WHERE venue = :venue_name
-        """ + (season_filter if season else "")
+        {season_filter}
+        """
         
         outcomes = execute_raw_sql(db, outcomes_query, params)
         
         # Season-wise stats
-        season_stats_query = """
+        season_stats_query = f"""
         SELECT 
             season,
             COUNT(*) as total_matches,
@@ -160,7 +163,7 @@ def get_venue_stats(
             END)::numeric / NULLIF(SUM(CASE WHEN toss_decision = 'field' THEN 1 ELSE 0 END), 0) * 100, 2) as fielding_first_win_percentage
         FROM match_info m
         WHERE venue = :venue_name
-        """ + (season_filter if season else "") + """
+        {season_filter}
         GROUP BY season
         ORDER BY season
         """
@@ -168,7 +171,7 @@ def get_venue_stats(
         season_stats = execute_raw_sql(db, season_stats_query, params)
         
         # Team performance at venue
-        team_stats_query = """
+        team_stats_query = f"""
         WITH team_matches AS (
             SELECT 
                 team_name,
@@ -186,7 +189,7 @@ def get_venue_stats(
                 SELECT team2 as team_name, * FROM match_info
             ) m
             WHERE m.venue = :venue_name
-            """ + (season_filter if season else "") + """
+            {season_filter}
         )
         SELECT 
             team_name,
@@ -202,7 +205,7 @@ def get_venue_stats(
         team_stats = execute_raw_sql(db, team_stats_query, params)
         
         # Batting and bowling stats at venue
-        batting_stats_query = """
+        batting_stats_query = f"""
         WITH venue_batting AS (
             SELECT 
                 i.*,
@@ -211,7 +214,7 @@ def get_venue_stats(
             FROM innings_data i
             JOIN match_info m ON i.filename = m.filename
             WHERE m.venue = :venue_name
-            """ + (season_filter if season else "") + """
+            {season_filter}
         )
         SELECT 
             batsman,
@@ -230,7 +233,7 @@ def get_venue_stats(
         """
         
         # Bowling stats at venue
-        bowling_stats_query = """
+        bowling_stats_query = f"""
         WITH venue_bowling AS (
             SELECT 
                 i.*,
@@ -239,7 +242,7 @@ def get_venue_stats(
             FROM innings_data i
             JOIN match_info m ON i.filename = m.filename
             WHERE m.venue = :venue_name
-            """ + (season_filter if season else "") + """
+            {season_filter}
         ),
         wickets_by_bowler AS (
             SELECT 
@@ -265,7 +268,7 @@ def get_venue_stats(
         """
         
         # Recent matches at venue
-        recent_matches_query = """
+        recent_matches_query = f"""
         SELECT 
             filename,
             match_date,
@@ -278,7 +281,7 @@ def get_venue_stats(
             player_of_match
         FROM match_info m
         WHERE venue = :venue_name
-        """ + (season_filter if season else "") + """
+        {season_filter}
         ORDER BY match_date DESC
         LIMIT 10
         """
@@ -304,21 +307,26 @@ def get_venue_stats(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error in get_venue_stats: {str(e)}")
+        print(f"Venue: {venue_name}, Season: {season}")
         raise HTTPException(status_code=500, detail=f"Error fetching venue stats: {str(e)}")
 
 @router.get("/comparisons")
 def compare_venues(
-    venues: List[str] = Query(..., description="List of venue names to compare"),
+    venues: str = Query(..., description="Comma-separated list of venue names to compare"),
     db: Session = Depends(get_db)
 ):
     """Compare statistics for multiple venues."""
     try:
-        if not venues:
+        # Parse comma-separated venues
+        venue_list = [venue.strip() for venue in venues.split(',')]
+        
+        if not venue_list:
             raise HTTPException(status_code=400, detail="At least one venue must be specified")
             
         # Format venue list for SQL IN clause
-        venue_list = "', '".join(venues)
-        venue_list = f"('{venue_list}')"
+        venue_placeholders = ', '.join([f"'{venue}'" for venue in venue_list])
+        venue_in_clause = f"({venue_placeholders})"
         
         # Basic venue comparison
         comparison_query = f"""
@@ -344,7 +352,7 @@ def compare_venues(
             ROUND(SUM(CASE WHEN toss_decision = 'field' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100, 2) as field_first_percentage,
             ROUND(SUM(CASE WHEN winner = toss_winner THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as toss_winner_win_percentage
         FROM match_info m
-        WHERE venue IN {venue_list}
+        WHERE venue IN {venue_in_clause}
         GROUP BY venue, city
         ORDER BY matches_hosted DESC
         """
@@ -363,7 +371,7 @@ def compare_venues(
                 COUNT(CASE WHEN i.wicket_details IS NOT NULL AND i.wicket_details != '' THEN 1 END) as wickets
             FROM innings_data i
             JOIN match_info m ON i.filename = m.filename
-            WHERE m.venue IN {venue_list}
+            WHERE m.venue IN {venue_in_clause}
             GROUP BY m.venue, i.innings_type, i.filename
         )
         SELECT 
@@ -384,7 +392,7 @@ def compare_venues(
         batting_comparison = execute_raw_sql(db, batting_comparison_query)
         
         return {
-            "venues_compared": venues,
+            "venues_compared": venue_list,
             "comparison_data": comparison_data,
             "batting_comparison": batting_comparison
         }
@@ -392,4 +400,6 @@ def compare_venues(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error in compare_venues: {str(e)}")
+        print(f"Venues parameter: {venues}")
         raise HTTPException(status_code=500, detail=f"Error comparing venues: {str(e)}")

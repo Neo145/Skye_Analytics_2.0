@@ -11,6 +11,98 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+@router.get("/all")
+def get_all_players(db: Session = Depends(get_db)):
+    """Get all players with their roles."""
+    try:
+        # Query to get all player names and determine their roles
+        query = """
+        WITH batsmen AS (
+            SELECT DISTINCT batsman as player_name FROM innings_data WHERE batsman IS NOT NULL
+        ),
+        bowlers AS (
+            SELECT DISTINCT bowler as player_name FROM innings_data WHERE bowler IS NOT NULL
+        ),
+        player_of_match AS (
+            SELECT DISTINCT player_of_match as player_name FROM match_info WHERE player_of_match IS NOT NULL
+        ),
+        batting_stats AS (
+            SELECT 
+                batsman as player_name,
+                COUNT(*) as balls_faced,
+                SUM(runs_batsman) as runs_scored
+            FROM innings_data
+            WHERE batsman IS NOT NULL
+            GROUP BY batsman
+        ),
+        bowling_stats AS (
+            SELECT 
+                bowler as player_name,
+                COUNT(*) as balls_bowled,
+                COUNT(CASE WHEN wicket_details IS NOT NULL AND wicket_details != '' THEN 1 END) as wickets
+            FROM innings_data
+            WHERE bowler IS NOT NULL
+            GROUP BY bowler
+        ),
+        combined_stats AS (
+            SELECT 
+                COALESCE(bat.player_name, bowl.player_name) as player_name,
+                COALESCE(bat.balls_faced, 0) as balls_faced,
+                COALESCE(bat.runs_scored, 0) as runs_scored,
+                COALESCE(bowl.balls_bowled, 0) as balls_bowled,
+                COALESCE(bowl.wickets, 0) as wickets
+            FROM batting_stats bat
+            FULL OUTER JOIN bowling_stats bowl ON bat.player_name = bowl.player_name
+        ),
+        player_roles AS (
+            SELECT 
+                player_name,
+                CASE 
+                    WHEN balls_faced > 0 AND balls_bowled = 0 THEN 'Batsman'
+                    WHEN balls_faced = 0 AND balls_bowled > 0 THEN 'Bowler'
+                    WHEN balls_faced > 0 AND balls_bowled > 0 THEN 'All-Rounder'
+                    ELSE 'Unknown'
+                END as role,
+                balls_faced,
+                runs_scored,
+                balls_bowled,
+                wickets
+            FROM combined_stats
+        )
+        SELECT 
+            player_name,
+            role,
+            balls_faced,
+            runs_scored,
+            balls_bowled,
+            wickets,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM player_of_match pom WHERE pom.player_name = pr.player_name) THEN true
+                ELSE false
+            END as has_won_pom
+        FROM player_roles pr
+        ORDER BY 
+            CASE role
+                WHEN 'All-Rounder' THEN 1
+                WHEN 'Batsman' THEN 2
+                WHEN 'Bowler' THEN 3
+                ELSE 4
+            END,
+            player_name
+        """
+        
+        players = execute_raw_sql(db, query)
+        
+        return {
+            "players": players,
+            "count": len(players)
+        }
+    
+    except Exception as e:
+        error_detail = f"Error fetching all players: {str(e)}"
+        print(error_detail)  # Print to server logs for debugging
+        raise HTTPException(status_code=500, detail=error_detail)
+
 @router.get("/search")
 def search_players(
     query: str = Query(..., min_length=2, description="Player name search query"),
@@ -117,7 +209,7 @@ def get_player_stats(
         # Season filter clause
         season_filter = "AND m.season = :season" if season else ""
         
-        # Get player batting statistics by season
+        # Get player batting statistics by season - FIXED UNION TYPE MISMATCH
         batting_query = f"""
         WITH player_batting AS (
             SELECT 
@@ -139,7 +231,7 @@ def get_player_stats(
         ),
         season_stats AS (
             SELECT 
-                season,
+                season::text as season,  -- Convert to text to match with career stats
                 COUNT(DISTINCT filename) as matches_played,
                 COUNT(*) as balls_faced,
                 SUM(runs_batsman) as runs_scored,
@@ -155,7 +247,7 @@ def get_player_stats(
         ),
         innings_totals AS (
             SELECT 
-                season,
+                season::text as season,  -- Convert to text to match
                 filename,
                 innings_type,
                 SUM(runs_batsman) as innings_total
@@ -221,10 +313,10 @@ def get_player_stats(
         UNION ALL
         SELECT * FROM career_stats
         ORDER BY 
-            CASE WHEN season = 'Career' THEN 9999 ELSE season::int END
+            CASE WHEN season = 'Career' THEN '9999' ELSE season END
         """
         
-        # Get player bowling statistics by season
+        # Get player bowling statistics by season - FIXED UNION TYPE MISMATCH
         bowling_query = f"""
         WITH player_bowling AS (
             SELECT 
@@ -247,14 +339,14 @@ def get_player_stats(
         wickets_by_match AS (
             SELECT 
                 filename,
-                season,
+                season::text as season,  -- Convert to text
                 COUNT(CASE WHEN wicket_details IS NOT NULL AND wicket_details != '' THEN 1 END) as wickets
             FROM player_bowling
             GROUP BY filename, season
         ),
         season_stats AS (
             SELECT 
-                pb.season,
+                pb.season::text as season,  -- Convert to text
                 COUNT(DISTINCT pb.filename) as matches_played,
                 COUNT(*) as balls_bowled,
                 ROUND(COUNT(*) / 6.0, 1) as overs_bowled,
@@ -270,7 +362,7 @@ def get_player_stats(
                 COUNT(DISTINCT CASE WHEN w.wickets >= 3 THEN pb.filename END) as three_plus_wickets,
                 COUNT(DISTINCT CASE WHEN w.wickets >= 5 THEN pb.filename END) as five_plus_wickets
             FROM player_bowling pb
-            LEFT JOIN wickets_by_match w ON pb.filename = w.filename AND pb.season = w.season
+            LEFT JOIN wickets_by_match w ON pb.filename = w.filename AND pb.season::text = w.season
             GROUP BY pb.season
             ORDER BY pb.season
         ),
@@ -299,14 +391,14 @@ def get_player_stats(
         UNION ALL
         SELECT * FROM career_stats
         ORDER BY 
-            CASE WHEN season = 'Career' THEN 9999 ELSE season::int END
+            CASE WHEN season = 'Career' THEN '9999' ELSE season END
         """
         
-        # Get player teams by season
+        # Get player teams by season - FIXED TO CONVERT SEASON TO TEXT
         teams_query = f"""
         WITH player_teams AS (
             SELECT DISTINCT
-                m.season,
+                m.season::text as season,  -- Convert to text
                 i.team
             FROM innings_data i
             JOIN match_info m ON i.filename = m.filename
@@ -321,11 +413,11 @@ def get_player_stats(
         ORDER BY season
         """
         
-        # Get player achievements
+        # Get player achievements - FIXED TO CONVERT SEASON TO TEXT
         achievements_query = f"""
         WITH player_of_match AS (
             SELECT 
-                season,
+                season::text as season,  -- Convert to text
                 COUNT(*) as count
             FROM match_info
             WHERE player_of_match = :player_name
@@ -337,7 +429,7 @@ def get_player_stats(
                 SELECT 
                     i.filename,
                     i.innings_type,
-                    m.season,
+                    m.season::text as season,  -- Convert to text
                     SUM(i.runs_batsman) as runs
                 FROM innings_data i
                 JOIN match_info m ON i.filename = m.filename
@@ -357,7 +449,7 @@ def get_player_stats(
                 SELECT 
                     i.filename,
                     i.innings_type,
-                    m.season,
+                    m.season::text as season,  -- Convert to text
                     SUM(CASE WHEN i.wicket_details IS NOT NULL AND i.wicket_details != '' THEN 1 ELSE 0 END) as wickets
                 FROM innings_data i
                 JOIN match_info m ON i.filename = m.filename
@@ -385,10 +477,18 @@ def get_player_stats(
         FULL OUTER JOIN bowling_milestones bm ON COALESCE(pom.season, f.season) = bm.season
         ORDER BY 
             CASE 
-                WHEN COALESCE(pom.season, f.season, bm.season) ~ '^[0-9]+$' 
-                THEN COALESCE(pom.season, f.season, bm.season)::int 
-                ELSE 9999 
+                WHEN COALESCE(pom.season, f.season, bm.season) = 'Career' THEN '9999'
+                ELSE COALESCE(pom.season, f.season, bm.season)
             END
+        """
+        
+        # Get list of all seasons the player has played - FIXED TO RETURN TEXT SEASONS
+        seasons_played_query = """
+        SELECT DISTINCT m.season::text as season
+        FROM innings_data i
+        JOIN match_info m ON i.filename = m.filename
+        WHERE i.batsman = :player_name OR i.bowler = :player_name
+        ORDER BY season
         """
         
         params = {"player_name": exact_player_name}
@@ -399,15 +499,6 @@ def get_player_stats(
         bowling_stats = execute_raw_sql(db, bowling_query, params)
         teams = execute_raw_sql(db, teams_query, params)
         achievements = execute_raw_sql(db, achievements_query, params)
-        
-        # Get list of all seasons the player has played
-        seasons_played_query = """
-        SELECT DISTINCT m.season
-        FROM innings_data i
-        JOIN match_info m ON i.filename = m.filename
-        WHERE i.batsman = :player_name OR i.bowler = :player_name
-        ORDER BY m.season
-        """
         
         seasons_played = [row["season"] for row in execute_raw_sql(db, seasons_played_query, {"player_name": exact_player_name})]
         
@@ -749,7 +840,6 @@ def get_top_players(
                 player_name,
                 COUNT(DISTINCT filename) as matches,
                 COUNT(CASE WHEN wicket_details IS NOT NULL AND wicket_details != '' THEN 1 END) as wickets,
-                ROUND(COUNT(*)::numeric / NULLIF(COUNT(CASE WHEN))
                 ROUND(COUNT(*)::numeric / NULLIF(COUNT(CASE WHEN wicket_details IS NOT NULL AND wicket_details != '' THEN 1 END), 0), 2) as bowling_strike_rate
             FROM player_bowling
             GROUP BY player_name
