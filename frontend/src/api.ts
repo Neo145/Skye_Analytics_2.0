@@ -78,7 +78,7 @@ const API_BASE = isLocalDevelopment
 // Create an axios instance with default configurations
 const axiosInstance = axios.create({
   baseURL: API_BASE,
-  timeout: 10000, // 10 seconds timeout
+  timeout: 30000, // 10 seconds timeout
   headers: {
     'Content-Type': 'application/json',
   },
