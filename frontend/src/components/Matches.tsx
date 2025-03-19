@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './Matches.css';
 
 interface OverallStats {
   total_matches: number;

@@ -16,8 +16,12 @@ from app.utils.db_utils import (
 )
 
 # Import routers
-from app.routers import teams, players, matches, venues, toss, head_to_head
+from app.routers import teams, players, matches, venues, toss, head_to_head, ipl_records, ipl_history
+from app.routers.team_performance import router as team_performance_router
+# from app.routers.seasonal_performance import router as seasonal_performance_router
 from app.routers import prediction_endpoint
+from app.routers.upcoming_matches import router as upcoming_matches_router
+from app.routers.simple_cricket_router import router as cricket_router
 
 # Create FastAPI instance
 app = FastAPI(
@@ -31,7 +35,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://skyeanalytics.in",  # Production frontend domain
-         "http://localhost:3000",  
+        "http://localhost:3000",  
         "http://localhost:5173",     # Local development
         "https://www.skyeanalytics.in"  # Optional: include www subdomain
     ],
@@ -48,6 +52,13 @@ app.include_router(matches.router)
 app.include_router(venues.router)
 app.include_router(toss.router)
 app.include_router(head_to_head.router)
+app.include_router(ipl_records.router)
+app.include_router(ipl_history.router)
+app.include_router(team_performance_router)
+# app.include_router(seasonal_performance_router)  # Add the new seasonal performance router
+# app.include_router(upcoming_matches_router)
+app.include_router(cricket_router)
+
 
 # Root endpoint
 @app.get("/")

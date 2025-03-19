@@ -1,42 +1,78 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Header1.css';
 
 const Header: React.FC = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    setIsMobileMenuOpen(false);
   };
 
   return (
-    <header className="header">
+    <header className="cricket-header">
       <div className="header-container">
-        <div className="logo-container">
-          <Link to="/" className="logo-link">
-            <div className="logo">
-              <span className="logo-text">Skye</span>
-              <span className="logo-dot"></span>
-              <span className="logo-text green">Analytics</span>
-            </div>
-          </Link>
+        {/* Logo Section */}
+        <div className="header-logo" onClick={() => handleNavigation('/')}>
+          <span className="logo-blue">Skye</span>
+          <span className="logo-green">Analytics</span>
         </div>
 
-        <nav className={`main-nav ${isMenuOpen ? 'active' : ''}`}>
-          <Link to="/" className="nav-link">Home</Link>
-          <Link to="/cricket" className="nav-link active">Cricket</Link>
-          <Link to="/stocks" className="nav-link">Stocks</Link>
-          <Link to="/about" className="nav-link">About</Link>
-          <Link to="/contact" className="nav-link">Contact</Link>
+        {/* Desktop Navigation */}
+        <nav className="desktop-nav">
+          <ul>
+            <li><Link to="/cricket">Cricket</Link></li>
+            <li className="coming-soon">Stock Market</li>
+            <li><Link to="/about">About</Link></li>
+            <li><Link to="/contact">Contact</Link></li>
+          </ul>
         </nav>
 
-        <div className="mobile-menu-button" onClick={toggleMenu}>
-          <div className={`menu-icon ${isMenuOpen ? 'active' : ''}`}>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
+        {/* User Actions */}
+        <div className="header-actions">
+          <button 
+            className="login-button"
+            onClick={() => handleNavigation('/login')}
+          >
+            Login
+          </button>
+          <button 
+            className="signup-button"
+            onClick={() => handleNavigation('/signup')}
+          >
+            Sign Up
+          </button>
         </div>
+
+        {/* Mobile Menu Toggle */}
+        <div 
+          className={`mobile-menu-toggle ${isMobileMenuOpen ? 'open' : ''}`}
+          onClick={toggleMobileMenu}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Menu */}
+      <div className={`mobile-nav ${isMobileMenuOpen ? 'open' : ''}`}>
+        <ul>
+          <li onClick={() => handleNavigation('/cricket')}>Cricket Analytics</li>
+          <li className="coming-soon" onClick={() => {}}>Stock Market Analytics</li>
+          <li onClick={() => handleNavigation('/about')}>About Us</li>
+          <li onClick={() => handleNavigation('/contact')}>Contact</li>
+          <li className="mobile-auth">
+            <button onClick={() => handleNavigation('/login')}>Login</button>
+            <button onClick={() => handleNavigation('/signup')}>Sign Up</button>
+          </li>
+        </ul>
       </div>
     </header>
   );

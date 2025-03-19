@@ -1,429 +1,322 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from typing import List, Dict, Any, Optional
-from app.database import get_db
-from app.utils.db_utils import execute_raw_sql, query_to_dataframe
+from typing import List, Optional
+import pandas as pd
 
+# Import your database connection
+from app.database import get_db
+
+# Pydantic models for type hinting and validation
+from pydantic import BaseModel
+
+class HeadToHeadSummary(BaseModel):
+    team1: str
+    team2: str
+    total_matches: int
+    team1_wins: int
+    team2_wins: int
+    draws: int
+    team1_win_percentage: float
+    team2_win_percentage: float
+
+class HeadToHeadMatchDetail(BaseModel):
+    match_id: str
+    date: Optional[str] = None
+    venue: str
+    winner: str
+    margin: Optional[str] = None
+    season: Optional[int] = None
+
+class HeadToHeadVenuePerformance(BaseModel):
+    team1: str
+    team2: str
+    venues: List[dict]
+
+class HeadToHeadTrend(BaseModel):
+    team1: str
+    team2: str
+    recent_matches: List[HeadToHeadMatchDetail]
+    trend_analysis: dict
+
+class HeadToHeadMarginAnalysis(BaseModel):
+    team1: str
+    team2: str
+    average_margin_team1: Optional[float] = None
+    average_margin_team2: Optional[float] = None
+    most_dominant_victory_team1: Optional[HeadToHeadMatchDetail] = None
+    most_dominant_victory_team2: Optional[HeadToHeadMatchDetail] = None
+
+# Create the router
 router = APIRouter(
     prefix="/api/head-to-head",
-    tags=["Head-to-Head Analysis"],
-    responses={404: {"description": "Not found"}},
+    tags=["Head-to-Head Analysis"]
 )
 
-@router.get("/")
-def get_all_head_to_head(
-    db: Session = Depends(get_db)
-):
-    """Get all head-to-head records between teams."""
+def calculate_win_percentage(wins, total_matches):
+    """Calculate win percentage"""
+    if total_matches == 0:
+        return 0.0
+    return round((wins / total_matches) * 100, 2)
+
+def get_all_matches(db: Session):
+    """Fetch all matches data from the database"""
     try:
         query = """
-        WITH team_matchups AS (
-            SELECT 
-                CASE 
-                    WHEN team1 < team2 THEN team1 
-                    ELSE team2 
-                END as team_a,
-                CASE 
-                    WHEN team1 < team2 THEN team2 
-                    ELSE team1 
-                END as team_b,
-                CASE 
-                    WHEN team1 < team2 THEN 
-                        CASE WHEN winner = team1 THEN 'team_a' 
-                             WHEN winner = team2 THEN 'team_b' 
-                             ELSE 'no_result' 
-                        END
-                    ELSE 
-                        CASE WHEN winner = team1 THEN 'team_b' 
-                             WHEN winner = team2 THEN 'team_a' 
-                             ELSE 'no_result' 
-                        END
-                END as winner
-            FROM match_info
-        )
-        
         SELECT 
-            team_a,
-            team_b,
-            COUNT(*) as matches_played,
-            SUM(CASE WHEN winner = 'team_a' THEN 1 ELSE 0 END) as team_a_wins,
-            SUM(CASE WHEN winner = 'team_b' THEN 1 ELSE 0 END) as team_b_wins,
-            SUM(CASE WHEN winner = 'no_result' THEN 1 ELSE 0 END) as no_results,
-            ROUND(SUM(CASE WHEN winner = 'team_a' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as team_a_win_percentage,
-            ROUND(SUM(CASE WHEN winner = 'team_b' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as team_b_win_percentage
-        FROM team_matchups
-        GROUP BY team_a, team_b
-        HAVING COUNT(*) > 0
-        ORDER BY matches_played DESC, team_a, team_b
+            filename, 
+            match_date, 
+            team1, 
+            team2, 
+            winner, 
+            venue, 
+            city, 
+            season, 
+            margin
+        FROM 
+            match_info
+        ORDER BY
+            match_date
         """
-        
-        h2h_records = execute_raw_sql(db, query)
-        return {"head_to_head_records": h2h_records}
-    
+        return pd.read_sql(query, db.bind)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching head-to-head records: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching matches: {str(e)}")
 
-@router.get("/{team1}/{team2}")
-def get_specific_head_to_head(
-    team1: str,
-    team2: str,
-    season: Optional[int] = None,
+@router.get("/summary", response_model=HeadToHeadSummary)
+def get_head_to_head_summary(
+    team1: str, 
+    team2: str, 
     db: Session = Depends(get_db)
 ):
-    """Get detailed head-to-head analysis between two specific teams."""
-    try:
-        # Check if both teams exist
-        check_query = """
-        SELECT 
-            SUM(CASE WHEN team = :team1 THEN 1 ELSE 0 END) as team1_exists,
-            SUM(CASE WHEN team = :team2 THEN 1 ELSE 0 END) as team2_exists
-        FROM (
-            SELECT team1 as team FROM match_info
-            UNION
-            SELECT team2 as team FROM match_info
-        ) as teams
-        """
+    """Get comprehensive head-to-head summary between two teams"""
+    matches_df = get_all_matches(db)
+    
+    # Filter matches between the two teams
+    head_to_head_matches = matches_df[
+        ((matches_df['team1'] == team1) & (matches_df['team2'] == team2)) |
+        ((matches_df['team1'] == team2) & (matches_df['team2'] == team1))
+    ]
+    
+    if head_to_head_matches.empty:
+        raise HTTPException(status_code=404, detail=f"No matches found between {team1} and {team2}")
+    
+    # Calculate wins for each team
+    team1_wins = len(head_to_head_matches[head_to_head_matches['winner'] == team1])
+    team2_wins = len(head_to_head_matches[head_to_head_matches['winner'] == team2])
+    total_matches = len(head_to_head_matches)
+    draws = total_matches - (team1_wins + team2_wins)
+    
+    return {
+        "team1": team1,
+        "team2": team2,
+        "total_matches": total_matches,
+        "team1_wins": team1_wins,
+        "team2_wins": team2_wins,
+        "draws": draws,
+        "team1_win_percentage": calculate_win_percentage(team1_wins, total_matches),
+        "team2_win_percentage": calculate_win_percentage(team2_wins, total_matches)
+    }
+
+@router.get("/match-details", response_model=List[HeadToHeadMatchDetail])
+def get_head_to_head_match_details(
+    team1: str, 
+    team2: str, 
+    limit: Optional[int] = 10, 
+    db: Session = Depends(get_db)
+):
+    """Get detailed match history between two teams"""
+    matches_df = get_all_matches(db)
+    
+    # Filter matches between the two teams
+    head_to_head_matches = matches_df[
+        ((matches_df['team1'] == team1) & (matches_df['team2'] == team2)) |
+        ((matches_df['team1'] == team2) & (matches_df['team2'] == team1))
+    ]
+    
+    if head_to_head_matches.empty:
+        raise HTTPException(status_code=404, detail=f"No matches found between {team1} and {team2}")
+    
+    # Sort by date descending and limit
+    head_to_head_matches['match_date'] = pd.to_datetime(head_to_head_matches['match_date'], errors='coerce')
+    head_to_head_matches = head_to_head_matches.sort_values('match_date', ascending=False).head(limit)
+    
+    match_details = []
+    for _, match in head_to_head_matches.iterrows():
+        match_details.append({
+            "match_id": match['filename'],
+            "date": match['match_date'].strftime("%Y-%m-%d") if not pd.isna(match['match_date']) else None,
+            "venue": match['venue'],
+            "winner": match['winner'],
+            "margin": match['margin'],
+            "season": match['season']
+        })
+    
+    return match_details
+
+@router.get("/venue-performance", response_model=HeadToHeadVenuePerformance)
+def get_head_to_head_venue_performance(team1: str, team2: str, db: Session = Depends(get_db)):
+    """Analyze venue-wise performance for head-to-head matches"""
+    matches_df = get_all_matches(db)
+    
+    # Filter matches between the two teams
+    head_to_head_matches = matches_df[
+        ((matches_df['team1'] == team1) & (matches_df['team2'] == team2)) |
+        ((matches_df['team1'] == team2) & (matches_df['team2'] == team1))
+    ]
+    
+    if head_to_head_matches.empty:
+        raise HTTPException(status_code=404, detail=f"No matches found between {team1} and {team2}")
+    
+    # Group by venue and calculate performance
+    venue_performance = []
+    venues = head_to_head_matches['venue'].unique()
+    
+    for venue in venues:
+        venue_matches = head_to_head_matches[head_to_head_matches['venue'] == venue]
         
-        check_result = execute_raw_sql(db, check_query, {"team1": team1, "team2": team2})
+        team1_matches = venue_matches[venue_matches['team1'] == team1]
+        team2_matches = venue_matches[venue_matches['team1'] == team2]
         
-        if not check_result or check_result[0]["team1_exists"] == 0:
-            raise HTTPException(status_code=404, detail=f"Team not found: {team1}")
-            
-        if check_result[0]["team2_exists"] == 0:
-            raise HTTPException(status_code=404, detail=f"Team not found: {team2}")
-            
-        # Season filter
-        season_filter = "AND season = :season" if season else ""
-        params = {"team1": team1, "team2": team2}
-        
-        if season:
-            params["season"] = season
-            
-        # Overall head-to-head stats
-        overall_query = """
-        SELECT 
-            COUNT(*) as matches_played,
-            SUM(CASE WHEN winner = :team1 THEN 1 ELSE 0 END) as team1_wins,
-            SUM(CASE WHEN winner = :team2 THEN 1 ELSE 0 END) as team2_wins,
-            SUM(CASE WHEN winner != :team1 AND winner != :team2 THEN 1 ELSE 0 END) as no_results,
-            ROUND(SUM(CASE WHEN winner = :team1 THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as team1_win_percentage,
-            ROUND(SUM(CASE WHEN winner = :team2 THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as team2_win_percentage,
-            SUM(CASE WHEN toss_winner = :team1 THEN 1 ELSE 0 END) as team1_toss_wins,
-            SUM(CASE WHEN toss_winner = :team2 THEN 1 ELSE 0 END) as team2_toss_wins,
-            SUM(CASE WHEN toss_winner = :team1 AND winner = :team1 THEN 1 ELSE 0 END) as team1_won_after_winning_toss,
-            SUM(CASE WHEN toss_winner = :team2 AND winner = :team2 THEN 1 ELSE 0 END) as team2_won_after_winning_toss
-        FROM match_info
-        WHERE (team1 = :team1 AND team2 = :team2) OR (team1 = :team2 AND team2 = :team1)
-        """ + season_filter
-        
-        # Season-wise head-to-head stats
-        season_query = """
-        SELECT 
-            season,
-            COUNT(*) as matches_played,
-            SUM(CASE WHEN winner = :team1 THEN 1 ELSE 0 END) as team1_wins,
-            SUM(CASE WHEN winner = :team2 THEN 1 ELSE 0 END) as team2_wins,
-            SUM(CASE WHEN winner != :team1 AND winner != :team2 THEN 1 ELSE 0 END) as no_results
-        FROM match_info
-        WHERE (team1 = :team1 AND team2 = :team2) OR (team1 = :team2 AND team2 = :team1)
-        """ + season_filter + """
-        GROUP BY season
-        ORDER BY season
-        """
-        
-        # Venue-wise head-to-head stats
-        venue_query = """
-        SELECT 
-            venue,
-            COUNT(*) as matches_played,
-            SUM(CASE WHEN winner = :team1 THEN 1 ELSE 0 END) as team1_wins,
-            SUM(CASE WHEN winner = :team2 THEN 1 ELSE 0 END) as team2_wins,
-            SUM(CASE WHEN winner != :team1 AND winner != :team2 THEN 1 ELSE 0 END) as no_results
-        FROM match_info
-        WHERE (team1 = :team1 AND team2 = :team2) OR (team1 = :team2 AND team2 = :team1)
-        """ + season_filter + """
-        GROUP BY venue
-        ORDER BY matches_played DESC
-        """
-        
-        # Match list
-        matches_query = """
-        SELECT 
-            filename,
-            match_date,
-            venue,
-            city,
-            team1,
-            team2,
-            toss_winner,
-            toss_decision,
-            winner,
-            margin,
-            player_of_match
-        FROM match_info
-        WHERE (team1 = :team1 AND team2 = :team2) OR (team1 = :team2 AND team2 = :team1)
-        """ + season_filter + """
-        ORDER BY match_date DESC
-        """
-        
-        # Player performances in head-to-head matches
-        batting_query = """
-        WITH h2h_matches AS (
-            SELECT filename
-            FROM match_info
-            WHERE (team1 = :team1 AND team2 = :team2) OR (team1 = :team2 AND team2 = :team1)
-            """ + season_filter + """
-        ),
-        player_innings AS (
-            SELECT 
-                i.team,
-                i.batsman,
-                i.filename,
-                SUM(i.runs_batsman) as runs,
-                COUNT(*) as balls_faced
-            FROM innings_data i
-            JOIN h2h_matches h ON i.filename = h.filename
-            GROUP BY i.team, i.batsman, i.filename
-        )
-        SELECT 
-            team,
-            batsman,
-            COUNT(DISTINCT filename) as matches,
-            SUM(runs) as total_runs,
-            MAX(runs) as highest_score,
-            ROUND(AVG(runs), 2) as avg_runs,
-            SUM(balls_faced) as balls_faced,
-            ROUND(SUM(runs)::numeric / SUM(balls_faced) * 100, 2) as strike_rate
-        FROM player_innings
-        GROUP BY team, batsman
-        HAVING SUM(runs) >= 50
-        ORDER BY total_runs DESC
-        LIMIT 20
-        """
-        
-        # Bowling performances in head-to-head matches
-        bowling_query = """
-        WITH h2h_matches AS (
-            SELECT filename
-            FROM match_info
-            WHERE (team1 = :team1 AND team2 = :team2) OR (team1 = :team2 AND team2 = :team1)
-            """ + season_filter + """
-        ),
-        wickets_by_bowler AS (
-            SELECT 
-                i.team,
-                i.bowler,
-                i.filename,
-                COUNT(CASE WHEN i.wicket_details IS NOT NULL AND i.wicket_details != '' THEN 1 END) as wickets
-            FROM innings_data i
-            JOIN h2h_matches h ON i.filename = h.filename
-            GROUP BY i.team, i.bowler, i.filename
-        ),
-        bowling_stats AS (
-            SELECT 
-                i.team,
-                i.bowler,
-                i.filename,
-                COUNT(*) as balls_bowled,
-                SUM(i.runs_total) as runs_conceded
-            FROM innings_data i
-            JOIN h2h_matches h ON i.filename = h.filename
-            GROUP BY i.team, i.bowler, i.filename
-        )
-        SELECT 
-            bs.team,
-            bs.bowler,
-            COUNT(DISTINCT bs.filename) as matches,
-            SUM(COALESCE(wb.wickets, 0)) as total_wickets,
-            MAX(COALESCE(wb.wickets, 0)) as best_bowling,
-            SUM(bs.balls_bowled) as balls_bowled,
-            SUM(bs.runs_conceded) as runs_conceded,
-            ROUND(SUM(bs.runs_conceded)::numeric / (SUM(bs.balls_bowled) / 6.0), 2) as economy
-        FROM bowling_stats bs
-        LEFT JOIN wickets_by_bowler wb ON bs.team = wb.team AND bs.bowler = wb.bowler AND bs.filename = wb.filename
-        GROUP BY bs.team, bs.bowler
-        HAVING SUM(COALESCE(wb.wickets, 0)) > 0
-        ORDER BY total_wickets DESC, economy
-        LIMIT 20
-        """
-        
-        overall_stats = execute_raw_sql(db, overall_query, params)
-        season_stats = execute_raw_sql(db, season_query, params)
-        venue_stats = execute_raw_sql(db, venue_query, params)
-        matches = execute_raw_sql(db, matches_query, params)
-        batting_performances = execute_raw_sql(db, batting_query, params)
-        bowling_performances = execute_raw_sql(db, bowling_query, params)
-        
-        return {
-            "team1": team1,
-            "team2": team2,
-            "overall_stats": overall_stats[0] if overall_stats else None,
-            "season_stats": season_stats,
-            "venue_stats": venue_stats,
-            "matches": matches,
-            "batting_performances": batting_performances,
-            "bowling_performances": bowling_performances,
-            "filters_applied": {
-                "season": season
+        venue_info = {
+            "venue": venue,
+            "total_matches": len(venue_matches),
+            team1: {
+                "matches": len(team1_matches),
+                "wins": len(team1_matches[team1_matches['winner'] == team1]),
+                "win_percentage": calculate_win_percentage(
+                    len(team1_matches[team1_matches['winner'] == team1]), 
+                    len(team1_matches)
+                )
+            },
+            team2: {
+                "matches": len(team2_matches),
+                "wins": len(team2_matches[team2_matches['winner'] == team2]),
+                "win_percentage": calculate_win_percentage(
+                    len(team2_matches[team2_matches['winner'] == team2]), 
+                    len(team2_matches)
+                )
             }
         }
         
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching head-to-head stats: {str(e)}")
+        venue_performance.append(venue_info)
+    
+    return {
+        "team1": team1,
+        "team2": team2,
+        "venues": venue_performance
+    }
 
-@router.get("/team/{team_name}/records")
-def get_team_all_h2h_records(
-    team_name: str,
+@router.get("/trend-analysis", response_model=HeadToHeadTrend)
+def get_head_to_head_trend_analysis(
+    team1: str, 
+    team2: str, 
+    recent_matches: int = 10, 
     db: Session = Depends(get_db)
 ):
-    """Get head-to-head records for a specific team against all opponents."""
-    try:
-        # Check if team exists
-        check_query = """
-        SELECT COUNT(*) 
-        FROM (
-            SELECT team1 as team FROM match_info
-            UNION
-            SELECT team2 as team FROM match_info
-        ) as teams
-        WHERE team = :team_name
-        """
-        
-        count = db.execute(text(check_query), {"team_name": team_name}).scalar()
-        
-        if count == 0:
-            raise HTTPException(status_code=404, detail=f"Team not found: {team_name}")
-            
-        # Get head-to-head records against all opponents
-        query = """
-        WITH team_matches AS (
-            SELECT 
-                CASE 
-                    WHEN team1 = :team_name THEN team2
-                    ELSE team1
-                END as opponent,
-                CASE 
-                    WHEN winner = :team_name THEN 1
-                    WHEN winner IS NULL OR winner = '' THEN 0
-                    ELSE -1
-                END as result
-            FROM match_info
-            WHERE team1 = :team_name OR team2 = :team_name
-        )
-        
-        SELECT 
-            opponent,
-            COUNT(*) as matches_played,
-            SUM(CASE WHEN result = 1 THEN 1 ELSE 0 END) as wins,
-            SUM(CASE WHEN result = -1 THEN 1 ELSE 0 END) as losses,
-            SUM(CASE WHEN result = 0 THEN 1 ELSE 0 END) as no_results,
-            ROUND(SUM(CASE WHEN result = 1 THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as win_percentage
-        FROM team_matches
-        GROUP BY opponent
-        ORDER BY matches_played DESC, win_percentage DESC
-        """
-        
-        h2h_records = execute_raw_sql(db, query, {"team_name": team_name})
-        
-        return {
-            "team_name": team_name,
-            "head_to_head_records": h2h_records
+    """Analyze recent performance trend between two teams"""
+    matches_df = get_all_matches(db)
+    
+    # Filter matches between the two teams
+    head_to_head_matches = matches_df[
+        ((matches_df['team1'] == team1) & (matches_df['team2'] == team2)) |
+        ((matches_df['team1'] == team2) & (matches_df['team2'] == team1))
+    ]
+    
+    if head_to_head_matches.empty:
+        raise HTTPException(status_code=404, detail=f"No matches found between {team1} and {team2}")
+    
+    # Sort by date descending and limit
+    head_to_head_matches['match_date'] = pd.to_datetime(head_to_head_matches['match_date'], errors='coerce')
+    recent_matches_df = head_to_head_matches.sort_values('match_date', ascending=False).head(recent_matches)
+    
+    # Prepare recent match details
+    recent_match_details = []
+    for _, match in recent_matches_df.iterrows():
+        recent_match_details.append({
+            "match_id": match['filename'],
+            "date": match['match_date'].strftime("%Y-%m-%d") if not pd.isna(match['match_date']) else None,
+            "venue": match['venue'],
+            "winner": match['winner'],
+            "season": match['season']
+        })
+    
+    # Trend analysis
+    trend_analysis = {
+        "total_recent_matches": len(recent_matches_df),
+        team1: {
+            "wins": len(recent_matches_df[recent_matches_df['winner'] == team1]),
+            "win_percentage": calculate_win_percentage(
+                len(recent_matches_df[recent_matches_df['winner'] == team1]), 
+                len(recent_matches_df)
+            )
+        },
+        team2: {
+            "wins": len(recent_matches_df[recent_matches_df['winner'] == team2]),
+            "win_percentage": calculate_win_percentage(
+                len(recent_matches_df[recent_matches_df['winner'] == team2]), 
+                len(recent_matches_df)
+            )
         }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching team's head-to-head records: {str(e)}")
+    }
+    
+    return {
+        "team1": team1,
+        "team2": team2,
+        "recent_matches": recent_match_details,
+        "trend_analysis": trend_analysis
+    }
 
-@router.get("/strongest-rivalries")
-def get_strongest_rivalries(
-    min_matches: int = Query(5, ge=3, description="Minimum number of matches played between teams"),
-    db: Session = Depends(get_db)
-):
-    """Get the strongest rivalries based on number of matches and closeness of the contest."""
-    try:
-        query = """
-        WITH team_matchups AS (
-            SELECT 
-                CASE 
-                    WHEN team1 < team2 THEN team1 
-                    ELSE team2 
-                END as team_a,
-                CASE 
-                    WHEN team1 < team2 THEN team2 
-                    ELSE team1 
-                END as team_b,
-                CASE 
-                    WHEN team1 < team2 THEN 
-                        CASE WHEN winner = team1 THEN 'team_a' 
-                             WHEN winner = team2 THEN 'team_b' 
-                             ELSE 'no_result' 
-                        END
-                    ELSE 
-                        CASE WHEN winner = team1 THEN 'team_b' 
-                             WHEN winner = team2 THEN 'team_a' 
-                             ELSE 'no_result' 
-                        END
-                END as winner
-            FROM match_info
-        ),
-        rivalry_stats AS (
-            SELECT 
-                team_a,
-                team_b,
-                COUNT(*) as matches_played,
-                SUM(CASE WHEN winner = 'team_a' THEN 1 ELSE 0 END) as team_a_wins,
-                SUM(CASE WHEN winner = 'team_b' THEN 1 ELSE 0 END) as team_b_wins,
-                SUM(CASE WHEN winner = 'no_result' THEN 1 ELSE 0 END) as no_results,
-                ROUND(SUM(CASE WHEN winner = 'team_a' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as team_a_win_percentage,
-                ROUND(SUM(CASE WHEN winner = 'team_b' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as team_b_win_percentage,
-                ABS(SUM(CASE WHEN winner = 'team_a' THEN 1 ELSE 0 END) - SUM(CASE WHEN winner = 'team_b' THEN 1 ELSE 0 END)) as win_difference,
-                ROUND(ABS(
-                    SUM(CASE WHEN winner = 'team_a' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100 - 
-                    SUM(CASE WHEN winner = 'team_b' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100
-                ), 2) as win_percentage_difference
-            FROM team_matchups
-            GROUP BY team_a, team_b
-            HAVING COUNT(*) >= :min_matches
-        )
+@router.get("/margin-analysis", response_model=HeadToHeadMarginAnalysis)
+def get_head_to_head_margin_analysis(team1: str, team2: str, db: Session = Depends(get_db)):
+    """Analyze victory margins between two teams"""
+    matches_df = get_all_matches(db)
+    
+    # Filter matches between the two teams
+    head_to_head_matches = matches_df[
+        ((matches_df['team1'] == team1) & (matches_df['team2'] == team2)) |
+        ((matches_df['team1'] == team2) & (matches_df['team2'] == team1))
+    ]
+    
+    if head_to_head_matches.empty:
+        raise HTTPException(status_code=404, detail=f"No matches found between {team1} and {team2}")
+    
+    # Parse and convert margins to numeric values (this is a simplified approach)
+    def parse_margin(margin: str) -> float:
+        try:
+            # Remove text and keep only numeric part
+            import re
+            numeric_margin = re.findall(r'\d+', margin)[0]
+            return float(numeric_margin)
+        except:
+            return 0.0
+    
+    # Calculate margins for each team
+    team1_matches = head_to_head_matches[head_to_head_matches['winner'] == team1]
+    team2_matches = head_to_head_matches[head_to_head_matches['winner'] == team2]
+    
+    # Calculate average margins
+    team1_margins = team1_matches['margin'].apply(parse_margin)
+    team2_margins = team2_matches['margin'].apply(parse_margin)
+    
+    # Find most dominant victories
+    def get_most_dominant_victory(team_matches):
+        if team_matches.empty:
+            return None
         
-        SELECT 
-            team_a,
-            team_b,
-            matches_played,
-            team_a_wins,
-            team_b_wins,
-            no_results,
-            team_a_win_percentage,
-            team_b_win_percentage,
-            win_difference,
-            win_percentage_difference,
-            CASE 
-                WHEN win_percentage_difference < 10 THEN 'Very Competitive'
-                WHEN win_percentage_difference < 20 THEN 'Competitive'
-                WHEN win_percentage_difference < 30 THEN 'Moderately Competitive'
-                ELSE 'One-sided'
-            END as rivalry_type,
-            ROUND(
-                (matches_played::numeric * 0.5) + 
-                ((50 - win_percentage_difference) * 0.5) +
-                (LEAST(team_a_wins, team_b_wins) * 0.2), 
-                2
-            ) as rivalry_score
-        FROM rivalry_stats
-        ORDER BY rivalry_score DESC, matches_played DESC
-        LIMIT 20
-        """
-        
-        rivalries = execute_raw_sql(db, query, {"min_matches": min_matches})
-        
+        most_dominant = team_matches.loc[team_matches['margin'].apply(parse_margin).idxmax()]
         return {
-            "min_matches": min_matches,
-            "rivalries": rivalries
+            "match_id": most_dominant['filename'],
+            "date": pd.to_datetime(most_dominant['match_date']).strftime("%Y-%m-%d"),
+            "venue": most_dominant['venue'],
+            "winner": most_dominant['winner'],
+            "margin": most_dominant['margin'],
+            "season": most_dominant['season']
         }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching strongest rivalries: {str(e)}")
+    
+    return {
+        "team1": team1,
+        "team2": team2,
+        "average_margin_team1": team1_margins.mean() if not team1_margins.empty else None,
+        "average_margin_team2": team2_margins.mean() if not team2_margins.empty else None,
+        "most_dominant_victory_team1": get_most_dominant_victory(team1_matches),
+        "most_dominant_victory_team2": get_most_dominant_victory(team2_matches)
+    }

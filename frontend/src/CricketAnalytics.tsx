@@ -8,53 +8,76 @@ import TeamDetails from './components/TeamDetails';
 import TossAnalysis from './components/TossAnalysis';
 import Matches from './components/Matches';
 import StatHistory from './components/StatHistory';
-import PredictWinner from './components/PredictWinner';
 import PlayerAnalytics from './components/PlayerAnalytics';
 import VenueAnalytics from './components/VenueAnalytics';
+import MatchTrends from './components/MatchTrends';
+import PredictWinner from './components/PredictWinner';
+import IPL2025Matches from './components/IPL2025Matches'; // Import the new component
 
-// Define content types
-type ContentType = 
+// Import API service
+import SkyeAnalyticsApi from './api';
+
+// Define main tab types
+type MainTabType = 'predictionModel' | 'matchTrends' | 'iplHistory' | 'ipl2025'; // Added new tab type
+
+// Define IPL History subtab types
+type IplHistorySubTabType = 
   'matches' | 
   'statHistory' | 
-  'predictWinner' | 
+  'teamsOverview' | 
   'playerAnalytics' | 
   'venueAnalytics' | 
   'tossAnalytics' | 
-  'teamsOverview' | 
   'teamDetails';
 
 const CricketAnalytics: React.FC = () => {
-  const [activeContent, setActiveContent] = useState<ContentType>('matches');
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('iplHistory');
+  const [activeIplHistorySubTab, setActiveIplHistorySubTab] = useState<IplHistorySubTabType>('matches');
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const renderContent = () => {
-    switch (activeContent) {
+  const renderIplHistoryContent = () => {
+    if (isLoading) {
+      return <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading analytics data...</p>
+      </div>;
+    }
+
+    if (error) {
+      return <div className="error-container">
+        <h3>Error Loading Data</h3>
+        <p>{error}</p>
+        <button onClick={() => setError(null)} className="retry-button">Try Again</button>
+      </div>;
+    }
+
+    switch (activeIplHistorySubTab) {
       case 'matches':
         return <Matches />;
       case 'statHistory':
         return <StatHistory />;
-      case 'predictWinner':
-        return <PredictWinner />;
+      case 'teamsOverview':
+        return (
+          <TeamsOverview 
+            onTeamSelect={(teamName) => {
+              setSelectedTeam(teamName);
+              setActiveIplHistorySubTab('teamDetails');
+            }} 
+          />
+        );
       case 'playerAnalytics':
         return <PlayerAnalytics />;
       case 'venueAnalytics':
         return <VenueAnalytics />;
       case 'tossAnalytics':
         return <TossAnalysis />;
-      case 'teamsOverview':
-        return (
-          <TeamsOverview 
-            onTeamSelect={(teamName) => {
-              setSelectedTeam(teamName);
-              setActiveContent('teamDetails');
-            }} 
-          />
-        );
       case 'teamDetails':
         return selectedTeam ? (
           <TeamDetails 
             teamName={selectedTeam}
-            onBackToTeams={() => setActiveContent('teamsOverview')}
+            onBackToTeams={() => setActiveIplHistorySubTab('teamsOverview')}
           />
         ) : (
           <div className="text-center text-gray-600 p-8">
@@ -66,6 +89,65 @@ const CricketAnalytics: React.FC = () => {
     }
   };
 
+  const renderMainContent = () => {
+    switch (activeMainTab) {
+      case 'predictionModel':
+        return <PredictWinner />;
+      case 'matchTrends':
+        return <MatchTrends />;
+      case 'ipl2025': // New case for IPL 2025 matches
+        return <IPL2025Matches />;
+      case 'iplHistory':
+        return (
+          <div className="ipl-history-container">
+            <div className="sub-navigation">
+              <button 
+                className={`sub-nav-button ${activeIplHistorySubTab === 'matches' ? 'active' : ''}`}
+                onClick={() => setActiveIplHistorySubTab('matches')}
+              >
+                Matches
+              </button>
+              <button 
+                className={`sub-nav-button ${activeIplHistorySubTab === 'statHistory' ? 'active' : ''}`}
+                onClick={() => setActiveIplHistorySubTab('statHistory')}
+              >
+                Stat History
+              </button>
+              <button 
+                className={`sub-nav-button ${activeIplHistorySubTab === 'teamsOverview' ? 'active' : ''}`}
+                onClick={() => setActiveIplHistorySubTab('teamsOverview')}
+              >
+                Team Overview
+              </button>
+              <button 
+                className={`sub-nav-button ${activeIplHistorySubTab === 'playerAnalytics' ? 'active' : ''}`}
+                onClick={() => setActiveIplHistorySubTab('playerAnalytics')}
+              >
+                Player Analytics
+              </button>
+              <button 
+                className={`sub-nav-button ${activeIplHistorySubTab === 'venueAnalytics' ? 'active' : ''}`}
+                onClick={() => setActiveIplHistorySubTab('venueAnalytics')}
+              >
+                Venue Analytics
+              </button>
+              <button 
+                className={`sub-nav-button ${activeIplHistorySubTab === 'tossAnalytics' ? 'active' : ''}`}
+                onClick={() => setActiveIplHistorySubTab('tossAnalytics')}
+              >
+                Toss Analytics
+              </button>
+            </div>
+            <div className="sub-content">
+              {renderIplHistoryContent()}
+            </div>
+          </div>
+        );
+      default:
+        return <div>Select a tab to view content</div>;
+    }
+  };
+
   return (
     <div className="cricket-analytics-page">
       <Header />
@@ -74,15 +156,15 @@ const CricketAnalytics: React.FC = () => {
         <div className="hero-content">
           <span className="hero-badge">IPL 2025 Ready</span>
           <h1>Cricket Intelligence Platform</h1>
-          <p className="hero-tagline">Transform raw cricket data into winning insights with advanced analytics and AI-powered predictions</p>
+          <p className="hero-tagline">Transform raw cricket data into winning insights with advanced analytics and data-driven visualizations</p>
           <div className="hero-stats">
-            <div className="hero-stat">
-              <span className="hero-stat-value">87%</span>
-              <span className="hero-stat-label">Prediction Accuracy</span>
-            </div>
             <div className="hero-stat">
               <span className="hero-stat-value">15M+</span>
               <span className="hero-stat-label">Data Points</span>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-value">All IPL</span>
+              <span className="hero-stat-label">Seasons Covered</span>
             </div>
             <div className="hero-stat">
               <span className="hero-stat-value">Real-time</span>
@@ -92,15 +174,15 @@ const CricketAnalytics: React.FC = () => {
           <div className="hero-actions">
             <button 
               className="hero-button primary"
-              onClick={() => setActiveContent('predictWinner')}
+              onClick={() => setActiveMainTab('predictionModel')}
             >
               Try Predictions
             </button>
             <button 
               className="hero-button secondary"
-              onClick={() => setActiveContent('matches')}
+              onClick={() => setActiveMainTab('matchTrends')}
             >
-              Explore Analytics
+              Explore Trends
             </button>
           </div>
         </div>
@@ -116,51 +198,33 @@ const CricketAnalytics: React.FC = () => {
       
       <div className="cricket-navigation">
         <button 
-          className={`nav-button ${activeContent === 'matches' ? 'active' : ''}`}
-          onClick={() => setActiveContent('matches')}
+          className={`nav-button ${activeMainTab === 'ipl2025' ? 'active' : ''}`}
+          onClick={() => setActiveMainTab('ipl2025')}
         >
-          Matches
+          IPL 2025
         </button>
         <button 
-          className={`nav-button ${activeContent === 'statHistory' ? 'active' : ''}`}
-          onClick={() => setActiveContent('statHistory')}
+          className={`nav-button ${activeMainTab === 'predictionModel' ? 'active' : ''}`}
+          onClick={() => setActiveMainTab('predictionModel')}
         >
-          Stat History
+          Prediction Model
         </button>
         <button 
-          className={`nav-button ${activeContent === 'teamsOverview' ? 'active' : ''}`}
-          onClick={() => setActiveContent('teamsOverview')}
+          className={`nav-button ${activeMainTab === 'matchTrends' ? 'active' : ''}`}
+          onClick={() => setActiveMainTab('matchTrends')}
         >
-          Teams Overview
+          Match Trends
         </button>
         <button 
-          className={`nav-button ${activeContent === 'predictWinner' ? 'active' : ''}`}
-          onClick={() => setActiveContent('predictWinner')}
+          className={`nav-button ${activeMainTab === 'iplHistory' ? 'active' : ''}`}
+          onClick={() => setActiveMainTab('iplHistory')}
         >
-          Predict Winner
-        </button>
-        <button 
-          className={`nav-button ${activeContent === 'playerAnalytics' ? 'active' : ''}`}
-          onClick={() => setActiveContent('playerAnalytics')}
-        >
-          Player Analytics
-        </button>
-        <button 
-          className={`nav-button ${activeContent === 'venueAnalytics' ? 'active' : ''}`}
-          onClick={() => setActiveContent('venueAnalytics')}
-        >
-          Venue Analytics
-        </button>
-        <button 
-          className={`nav-button ${activeContent === 'tossAnalytics' ? 'active' : ''}`}
-          onClick={() => setActiveContent('tossAnalytics')}
-        >
-          Toss Analytics
+          IPL History
         </button>
       </div>
       
       <main className="cricket-content">
-        {renderContent()}
+        {renderMainContent()}
       </main>
       
       <div className="cricket-features">
@@ -172,36 +236,43 @@ const CricketAnalytics: React.FC = () => {
             <p>Comprehensive data on all cricket matches with detailed performance metrics</p>
           </div>
           <div className="feature-card">
+            <div className="feature-icon trends-icon"></div>
+            <h3>Match Trends</h3>
+            <p>Discover patterns and insights across seasons, teams, and tournaments</p>
+          </div>
+          <div className="feature-card">
             <div className="feature-icon prediction-icon"></div>
-            <h3>ML Predictions</h3>
-            <p>Advanced machine learning models to predict match outcomes with high accuracy</p>
+            <h3>Predictive Analytics</h3>
+            <p>AI-powered predictions for match outcomes based on historical data</p>
           </div>
           <div className="feature-card">
             <div className="feature-icon player-icon"></div>
             <h3>Player Insights</h3>
             <p>Deep dive into player statistics, form analysis, and performance trends</p>
           </div>
-          <div className="feature-card">
-            <div className="feature-icon venue-icon"></div>
-            <h3>Venue Intelligence</h3>
-            <p>Understand how different venues impact game dynamics and strategies</p>
-          </div>
         </div>
       </div>
       
-      <div className="ml-prediction-showcase">
-        <div className="ml-content">
-          <h2>ML-Powered Cricket Predictions</h2>
-          <p>Our state-of-the-art machine learning models analyze thousands of data points to provide accurate match predictions</p>
-          <div className="accuracy-meter">
-            <div className="accuracy-label">Prediction Accuracy</div>
-            <div className="accuracy-bar">
-              <div className="accuracy-fill" style={{ width: '87%' }}></div>
+      <div className="data-showcase">
+        <div className="data-content">
+          <h2>Comprehensive Cricket Data Analysis</h2>
+          <p>Our platform analyzes thousands of data points to provide the most comprehensive cricket analytics experience</p>
+          <div className="data-highlights">
+            <div className="data-metric">
+              <div className="metric-value">All</div>
+              <div className="metric-label">IPL Seasons</div>
             </div>
-            <div className="accuracy-value">87%</div>
+            <div className="data-metric">
+              <div className="metric-value">10+</div>
+              <div className="metric-label">Analytics Views</div>
+            </div>
+            <div className="data-metric">
+              <div className="metric-value">Live</div>
+              <div className="metric-label">Match Coverage</div>
+            </div>
           </div>
         </div>
-        <div className="ml-visual"></div>
+        <div className="data-visual"></div>
       </div>
       
       <footer className="cricket-footer">
